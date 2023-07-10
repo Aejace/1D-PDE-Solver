@@ -24,7 +24,7 @@
   python solver developed by Dr. Joseph Iannelli of Washington State University,
   USA"
 """
-
+import mplcursors as mplcursors
 import numpy
 from matplotlib import animation
 import matplotlib.pyplot as plt
@@ -46,6 +46,7 @@ def main():
     PrintToScreen(differentialSystem)
     PrintToFile(differentialSystem)
     AnimateSolution(differentialSystem)
+    PlotFinalSolution(differentialSystem)
 
     print()
     print('Good bye!')
@@ -115,7 +116,7 @@ def AnimateSolution(differentialSystem):
     y = differentialSystem.computationalSolution.y[0:, 0]
     line1, = ax.plot(x, y)
 
-    ax.set(title='t = 0', xlabel='Point on rod', ylabel='Temperature')
+    ax.set(title='t = 0', xlabel='Point on rod', ylabel='Value')
     precision = len(str(differentialSystem.deltaT).split('.')[-1])
 
     def update(frame):
@@ -124,11 +125,28 @@ def AnimateSolution(differentialSystem):
 
     ani = animation.FuncAnimation(fig, update, frames = range(len(differentialSystem.timeSamplePoints)), interval=1000 * differentialSystem.deltaT)
     # mplcursors.cursor()
-    # ani.save('animation.html', writer='html')
+    #ani.save('animation.html', writer='html')
     plt.show()
 
     return
 
+def PlotFinalSolution(differentialSystem):
+    fig, ax = plt.subplots()
+    minY = numpy.min(differentialSystem.computationalSolution.y[0:, :])
+    maxY = numpy.max(differentialSystem.computationalSolution.y[0:, :])
+    ax.set_ylim(minY - 1, maxY + 1)
+
+    x = differentialSystem.xSamplePoints
+    y = differentialSystem.computationalSolution.y[0:, 0]
+    ax.plot(x, y, label = 'Starting Values')
+
+    y = differentialSystem.computationalSolution.y[0:, -1]
+    ax.plot(x, y, label = 'Steady State')
+
+    precision = len(str(differentialSystem.deltaT).split('.')[-1])
+    ax.set(title=f't = {len(differentialSystem.computationalSolution.t) * differentialSystem.deltaT: .{precision}f}', xlabel='Point on rod', ylabel='Value')
+    plt.legend()
+    plt.show()
 
 # -------------------------------------------------------
 main()
