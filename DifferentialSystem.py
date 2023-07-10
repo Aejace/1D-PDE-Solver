@@ -1,8 +1,10 @@
 import math
 import numpy
 from scipy.integrate import solve_ivp
-from PartialDifferentialEquations import HeatPDE, BatemanBurgersPDE
-from InitialConditions import LinearInitialCondition
+import PartialDifferentialEquations
+from InitialConditions.LinearInitialCondition import LinearInitialCondition
+from PartialDifferentialEquations.BatemanBurgersPDE import BatemanBurgersPDE
+from PartialDifferentialEquations.HeatPDE import HeatPDE
 
 
 class DifferentialSystem:
@@ -175,14 +177,14 @@ class DifferentialSystem:
 
     # Generates Jacobian matrix
     # Takes 3 arguments because the function is called in solve_ivp with 3 arguments. (Library requirements)
-    def GenerateJacobian(self, t, q):  # implement the differential-equation jacobian in this function
+    def GenerateJacobian(self, t, state):  # implement the differential-equation jacobian in this function
         # Initialize empty n x n matrix
         n = len(self.xSamplePoints)
         jacobianMatrix = numpy.zeros((n, n), dtype=float)
 
         # Fill matrix
         for i in range(1, n - 1):
-            self.PDE.PartialDerivative(jacobianMatrix, i)
+            self.PDE.PartialDerivative(jacobianMatrix, state, i)
 
         # Set left boundary conditions
         self.leftBoundaryCondition.PartialDerivative(jacobianMatrix)
