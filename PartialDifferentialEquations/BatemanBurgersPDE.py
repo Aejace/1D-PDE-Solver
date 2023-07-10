@@ -43,13 +43,13 @@ class BatemanBurgersPDE:
     # Called to create system of ODE's out of the PDE.
     def ODE(self, state, i):
         simplifiedConstants = self.alphaOverDeltaXSquared()
-        return (((state[i + 1]**2) - (state[i - 1]**2)) / (4.0 * self.deltaX)) + (simplifiedConstants * (state[i - 1] - 2.0 * state[i] + state[i + 1]))
+        return (((state[i + 1]**2) - (state[i - 1]**2)) / (-4.0 * self.deltaX)) + (simplifiedConstants * (state[i - 1] - 2.0 * state[i] + state[i + 1]))
 
 
     # Called to fill jacobian matrix with partial derivatives of ODE with respect or state[i - 1], state[i], and state[i + 1]
     def PartialDerivative(self, jacobianMatrix, state, i):
         simplifiedConstants = self.alphaOverDeltaXSquared()
 
-        jacobianMatrix[i][i - 1] = (state[i - 1] / (2.0 * self.deltaX)) + simplifiedConstants
+        jacobianMatrix[i][i - 1] = (state[i - 1] / (-2.0 * self.deltaX)) + simplifiedConstants
         jacobianMatrix[i][i] = -2.0 * simplifiedConstants
-        jacobianMatrix[i][i + 1] = (state[i + 1]  / (-2.0 * self.deltaX)) + simplifiedConstants
+        jacobianMatrix[i][i + 1] = (state[i + 1]  / (2.0 * self.deltaX)) + simplifiedConstants
