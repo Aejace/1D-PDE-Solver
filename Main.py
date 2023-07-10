@@ -27,7 +27,6 @@
 
 import numpy
 from matplotlib import animation
-from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
 from DifferentialSystem import DifferentialSystem
 

@@ -1,44 +1,35 @@
 import math
 import numpy
 from scipy.integrate import solve_ivp
-from BoundaryConditions import LeftFixedValueBoundaryCondition, LeftHeatFluxBoundaryCondition, \
-    LeftCoolingBoundaryCondition, RightFixedValueBoundaryCondition, RightHeatFluxBoundaryCondition, \
-    RightCoolingBoundaryCondition
+from PartialDifferentialEquations import HeatPDE, BatemanBurgersPDE
+from InitialConditions import LinearInitialCondition
 
 
 class DifferentialSystem:
     # Define differential system parameters
+    PDE = None
+    leftBoundaryCondition = None
+    rightBoundaryCondition = None
+    initialConditionFunction = None
+    computationalSolution = None
     deltaX = 0.1
     deltaT = 0.1
     xSamplePoints = []
     timeSamplePoints = []
     initialState = []
-    leftBoundaryCondition = None
-    rightBoundaryCondition = None
-    computationalSolution = None
-
-    # TODO: Define PDE parameters
-    alpha = 1.0
-    lateralCoefficientOfCooling = 0.0
-    lateralAmbientY = 5.0
-    leftStartingY = 5.0
-    rightStartingY = 30.0
 
 
     def __init__(self):
         self.SpecifySpaceParameters()
         self.SpecifyTimeParameters()
+        self.SpecifyPDE()
         self.SpecifyBoundaryConditions()
-
-        # Future work: Could write user-gets for other parameters
-        # self.SpecifyInitialDistributionFunction()
-        # Specify other parameters ---
-
+        self.SpecifyInitialConditionFunction()
         self.SetInitialState()
 
 
     def SpecifySpaceParameters(self):
-        # Future work: Could be parameterized, and implement scaling of the solution
+        # Future work: Could be parameterized, and implement scaling of the solution # Note: linear initial distribution relies on start and end being 0 and 1
         startingPosition = 0
         endingPosition = 1
 
@@ -79,52 +70,74 @@ class DifferentialSystem:
             self.timeSamplePoints[i] = self.deltaT * i
 
 
-    def SpecifyBoundaryConditions(self):
+    def SpecifyPDE(self):
         # Print options
-        print("Please select a left boundary condition type: ")
-        print("1: Fixed value")
-        print("2: Prescribed flux")
-        print("3: Prescribed cooling")
+        print("Please select a PDE: ")
+        print("1: Heat")
+        print("2: Bateman-Burgers")
         selection = input('Selection: ')
 
         # Validate
-        while not (selection == "1" or selection == "2" or selection == "3"):
-            selection = input('Error: Please input a number between 1 and 3: ')
+        while not (selection == "1" or selection == "2"):
+            selection = input('Error: Please input a number listed above: ')
 
         # Instantiate selected boundary condition
         leftBoundaryCondition = None
         match selection:
             case "1":
-                self.leftBoundaryCondition = LeftFixedValueBoundaryCondition(self)
+                self.PDE = HeatPDE(self.deltaX)
 
             case "2":
-                self.leftBoundaryCondition = LeftHeatFluxBoundaryCondition(self)
+                self.PDE = BatemanBurgersPDE(self.deltaX)
 
-            case "3":
-                self.leftBoundaryCondition = LeftCoolingBoundaryCondition(self)
 
-        # Print options
-        print("")
+    def SpecifyBoundaryConditions(self):
+        # Print left options
+        print("Please select a left boundary condition type: ")
+        leftBoundaryConditionOptions = self.PDE.GetLeftBoundaryConditions()
+        for i in range(0, len(leftBoundaryConditionOptions)):
+            print( str(i + 1) + ": " + leftBoundaryConditionOptions[i].name + ": ")
+        selection = int(input('Selection: '))
+
+        # Validate
+        while selection < 1 or selection > len(leftBoundaryConditionOptions):
+            selection = int(input('Error: Please input a number listed above: '))
+
+        # Instantiate selected boundary condition
+        self.leftBoundaryCondition = leftBoundaryConditionOptions[selection - 1]
+        self.leftBoundaryCondition.Initialize()
+
+
+        # Print right options
         print("Please select a right boundary condition type: ")
-        print("1: Fixed value")
-        print("2: Prescribed flux")
-        print("3: Prescribed cooling")
+        rightBoundaryConditionOptions = self.PDE.GetRightBoundaryConditions(selection - 1)
+        for i in range(0, len(rightBoundaryConditionOptions)):
+            print(str(i + 1) + ": " + rightBoundaryConditionOptions[i].name + ": ")
+        selection = int(input('Selection: '))
+
+        # Validate
+        while selection < 1 or selection > len(rightBoundaryConditionOptions):
+            selection = int(input('Error: Please input a number listed above: '))
+
+        # Instantiate selected boundary condition
+        self.rightBoundaryCondition = rightBoundaryConditionOptions[selection - 1]
+        self.rightBoundaryCondition.Initialize()
+
+
+    def SpecifyInitialConditionFunction(self):
+        # Print options
+        print("Please select an initial condition function type: ")
+        print("1: Linear")
         selection = input('Selection: ')
 
         # Validate
-        while not (selection == "1" or selection == "2" or selection == "3"):
-            selection = input('Error: Please input a number between 1 and 3: ')
+        while not (selection == "1"):
+            selection = input('Error: Please input a number listed above: ')
 
         # Instantiate selected boundary condition
         match selection:
             case "1":
-                self.rightBoundaryCondition = RightFixedValueBoundaryCondition(self)
-
-            case "2":
-                self.rightBoundaryCondition = RightHeatFluxBoundaryCondition(self)
-
-            case "3":
-                self.rightBoundaryCondition = RightCoolingBoundaryCondition(self)
+                self.initialConditionFunction = LinearInitialCondition(self)
 
 
     def SetInitialState(self):
@@ -136,7 +149,7 @@ class DifferentialSystem:
         # Future work: Could be replaced with a function parameter rather than using an explicit linear function here.
         for i in range(0, n):
             x = float(i) * self.deltaX
-            initialValueAtPositionX = self.leftStartingY + ((self.rightStartingY - self.leftStartingY) * x)  # Linear starting Y values varying from left to right.
+            initialValueAtPositionX = self.initialConditionFunction.GetValue(x)
             self.initialState[i] = initialValueAtPositionX
 
 
@@ -144,14 +157,14 @@ class DifferentialSystem:
     def GenerateOrdinaryDifferentialEquationSystem(self, t, state):
         n = len(self.xSamplePoints)
         ODEs = numpy.zeros(n, dtype=float)
-        simplifiedConstants = self.alphaOverDeltaXSquared()
 
-        # TODO: Enter differential equations here to modify program
+        # Fill ODEs
         for i in range(1, n - 1):
-            ODEs[i] = simplifiedConstants * (state[i - 1] - 2.0 * state[i] + state[i + 1]) + self.lateralCoefficientOfCooling * (self.lateralAmbientY - state[i])
+            ODEs[i] = self.PDE.ODE(state, i)
 
         # Set left boundary conditions
         ODEs[0] = self.leftBoundaryCondition.ODE(state)
+
         # Set right boundary conditions
         ODEs[n - 1] = self.rightBoundaryCondition.ODE(state)
 
@@ -167,14 +180,9 @@ class DifferentialSystem:
         n = len(self.xSamplePoints)
         jacobianMatrix = numpy.zeros((n, n), dtype=float)
 
-        # Helper function to simplify algebra
-        simplifiedConstants = self.alphaOverDeltaXSquared()
-
-        # TODO: Enter partial derivatives of differential equations here to modify program
+        # Fill matrix
         for i in range(1, n - 1):
-            jacobianMatrix[i][i - 1] = simplifiedConstants
-            jacobianMatrix[i][i] = simplifiedConstants * (- 2.0) - self.lateralCoefficientOfCooling
-            jacobianMatrix[i][i + 1] = simplifiedConstants
+            self.PDE.PartialDerivative(jacobianMatrix, i)
 
         # Set left boundary conditions
         self.leftBoundaryCondition.PartialDerivative(jacobianMatrix)
@@ -194,9 +202,4 @@ class DifferentialSystem:
         # Calculate solution with library call to solve_ivp
         self.computationalSolution = solve_ivp(self.GenerateOrdinaryDifferentialEquationSystem, timeRange, self.initialState, method ='Radau', t_eval = self.timeSamplePoints, dense_output = True, atol = 1.0e-9, rtol = 1.0e-9, jac = self.GenerateJacobian)
         return self.computationalSolution
-
-
-    # Define Helper Functions
-    def alphaOverDeltaXSquared(self):
-        return self.alpha / (self.deltaX * self.deltaX)
 
